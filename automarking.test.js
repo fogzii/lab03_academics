@@ -8,9 +8,8 @@ import {
   clear,
 } from './academics';
 
-beforeEach(() => {
-  clear();
-});
+beforeEach(() => clear());
+afterAll(() => clear());
 
 describe('clear', () => {
   let academic;
