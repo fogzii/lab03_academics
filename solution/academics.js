@@ -1,6 +1,8 @@
 /**
  * @module academics
  */
+  
+const ERROR = { error: 'error' };
 
 const database = {
   academics: [],
@@ -23,7 +25,7 @@ export function getCourse(courseId) {
 
 export function academicCreate(name, hobby) {
   if (!name || !hobby) {
-    return { error: 'error' };
+    return ERROR;
   }
 
   // Arbitrary way to generate ids since 0,1,2,3 is boring
@@ -41,10 +43,10 @@ export function academicCreate(name, hobby) {
 
 export function courseCreate(academicId, name, description) {
   if (!getAcademic(academicId)) {
-    return { error: 'error' };
+    return ERROR;
   }
   if (!/^[A-Z]{4}[0-9]{4}$/.test(name)) {
-    return { error: 'error' };
+    return ERROR;
   }
 
   // Arbitrary way to generate ids since 0,1,2,3 is boring
@@ -64,25 +66,25 @@ export function courseCreate(academicId, name, description) {
 
 export function academicDetails(academicId, academicToViewId) {
   if (!getAcademic(academicId)) {
-    return { error: 'error' };
+    return ERROR;
   }
   const academic = getAcademic(academicToViewId);
   if (!academic) {
-    return { error: 'error' };
+    return ERROR;
   }
   return { academic };
 }
 
 export function courseDetails(academicId, courseId) {
   if (!getAcademic(academicId)) {
-    return { error: 'error' };
+    return ERROR;
   }
   const course = getCourse(courseId);
   if (!course) {
-    return { error: 'error' };
+    return ERROR;
   }
   if (!course.allMemberIds.includes(academicId)) {
-    return { error: 'error' };
+    return ERROR;
   }
 
   const { staffMemberIds, allMemberIds, ...details } = course;
@@ -97,7 +99,7 @@ export function courseDetails(academicId, courseId) {
 
 export function academicsList(academicId) {
   if (!getAcademic(academicId)) {
-    return { error: 'error' };
+    return ERROR;
   }
   return {
     academics: database.academics.map(a => ({
@@ -109,7 +111,7 @@ export function academicsList(academicId) {
 
 export function coursesList(academicId) {
   if (!getAcademic(academicId)) {
-    return { error: 'error' };
+    return ERROR;
   }
   return {
     courses: database.courses.map(c => ({
@@ -117,6 +119,28 @@ export function coursesList(academicId) {
       courseName: c.name,
     })),
   };
+}
+
+export function courseEnrol(academicId, courseId, isStaff) {
+  if (!getAcademic(academicId)) {
+    return ERROR;
+  }
+  const course = getCourse(courseId);
+  if (!course) {
+    return ERROR;
+  }
+  if (course.allMemberIds.includes(academicId)) {
+    return ERROR;
+  }
+  course.allMemberIds.push(academicId);
+
+  if (isStaff) {
+    if (course.staffMemberIds.includes(academicId)) {
+      return ERROR;
+    }
+    course.staffMemberIds.push(academicId);
+  }
+  return {};
 }
 
 export function clear() {
