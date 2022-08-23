@@ -5,8 +5,12 @@ import {
   courseDetails,
   academicsList,
   coursesList,
+  courseEnrol,
   clear,
 } from './academics';
+
+// Extra leniency - should be { error: 'error' } from specs.
+const ERROR = { error: expect.any(String) };
 
 beforeEach(() => clear());
 afterAll(() => clear());
@@ -31,7 +35,7 @@ describe('clear', () => {
       ]
     });
     clear();
-    expect(academicsList(academic.academicId)).toStrictEqual({ error: 'error' });
+    expect(academicsList(academic.academicId)).toStrictEqual(ERROR);
 
     const academic2 = academicCreate('New User', 'New Hobby');
     expect(academicsList(academic2.academicId)).toStrictEqual({
@@ -55,7 +59,7 @@ describe('clear', () => {
       ]
     });
     clear();
-    expect(academicsList(academic.academicId)).toStrictEqual({ error: 'error' });
+    expect(academicsList(academic.academicId)).toStrictEqual(ERROR);
 
     const academic2 = academicCreate('New User', 'New Hobby');
     expect(coursesList(academic2.academicId)).toStrictEqual({
@@ -69,7 +73,7 @@ describe('academicCreate', () => {
     { name: '', hobby: 'valid' },
     { name: 'valid', hobby: '' },
   ])("error: ('$name', '$hobby')", ({ name, hobby }) => {
-    expect(academicCreate(name, hobby)).toStrictEqual({ error: 'error' });
+    expect(academicCreate(name, hobby)).toStrictEqual(ERROR);
   });
 
   const academicCreateObject = expect.objectContaining({
@@ -102,15 +106,15 @@ describe('Protected functions', () => {
   let course;
   beforeEach(() => {
     academic = createAcademic('Magnus', 'chess');
-    expect(academic.academicId).not.toStrictEqual({ error: 'error' });
+    expect(academic.academicId).not.toStrictEqual(ERROR);
 
     course = createCourse(academic.academicId, 'COMP1531', 'description');
-    expect(course.courseId).not.toStrictEqual({ error: 'error' });
+    expect(course.courseId).not.toStrictEqual(ERROR);
   });
 
   describe('courseCreate', () => {
     test('invalid academicId', () => {
-      expect(courseCreate(academic.academicId + 1, 'COMP1531', 'description')).toStrictEqual({ error: 'error' });
+      expect(courseCreate(academic.academicId + 1, 'COMP1531', 'description')).toStrictEqual(ERROR);
     });
 
     test.each([
@@ -122,7 +126,7 @@ describe('Protected functions', () => {
       { name: 'CCOMP1531' },
       { name: 'comp1531' },
     ])("invalid course name: '$name'", ({ name }) => {
-      expect(courseCreate(academic.academicId, name, '')).toStrictEqual({ error: 'error' });
+      expect(courseCreate(academic.academicId, name, '')).toStrictEqual(ERROR);
     });
 
     const courseCreateObject = expect.objectContaining({
@@ -144,11 +148,11 @@ describe('Protected functions', () => {
 
   describe('academicDetails', () => {
     test('invalid authId', () => {
-      expect(academicDetails(academic.academicId + 1, academic.academicId)).toStrictEqual({ error: 'error' });
+      expect(academicDetails(academic.academicId + 1, academic.academicId)).toStrictEqual(ERROR);
     });
 
     test('invalid viewId', () => {
-      expect(academicDetails(academic.academicId, academic.academicId + 1)).toStrictEqual({ error: 'error' });
+      expect(academicDetails(academic.academicId, academic.academicId + 1)).toStrictEqual(ERROR);
     });
 
     test('view self details', () => {
@@ -182,12 +186,12 @@ describe('Protected functions', () => {
 
   describe('courseDetails', () => {
     test('unknown academicId', () => {
-      expect(courseDetails(academic.academicId + 1, course.courseId)).toStrictEqual({ error: 'error' });
+      expect(courseDetails(academic.academicId + 1, course.courseId)).toStrictEqual(ERROR);
     });
 
     test('not member academicId', () => {
       const a2 = academicCreate('a2', 'hobby');
-      expect(courseDetails(a2.academicId, course.courseId)).toStrictEqual({ error: 'error' });
+      expect(courseDetails(a2.academicId, course.courseId)).toStrictEqual(ERROR);
     });
 
     test('correct details', () => {
@@ -203,7 +207,7 @@ describe('Protected functions', () => {
 
   describe('academicsList', () => {
     test('unknown academicId', () => {
-      expect(academicsList(academic.academicId + 1)).toStrictEqual({ error: 'error' });
+      expect(academicsList(academic.academicId + 1)).toStrictEqual(ERROR);
     });
 
     test('one academic', () => {
@@ -248,7 +252,7 @@ describe('Protected functions', () => {
 
   describe('coursesList', () => {
     test('unknown academicId', () => {
-      expect(coursesList(academic.academicId + 1)).toStrictEqual({ error: 'error' });
+      expect(coursesList(academic.academicId + 1)).toStrictEqual(ERROR);
     });
 
     test('one course', () => {
@@ -287,6 +291,47 @@ describe('Protected functions', () => {
       ]);
       const received = new Set(coursesList(academic.academicId).courses);
       expect(received).toStrictEqual(expected);
+    });
+  });
+  
+  describe('courseEnrol', () => {
+    let newMember;
+    beforeEach(() => {
+      newMember = createAcademic('Member', 'Hobbies');
+    });
+
+    describe('Invalid cases', () => {
+      test('unknown academicId', () => {
+        expect(courseEnrol(newMember.academicId + 1, course.courseId, false)).toStrictEqual(ERROR);
+      });
+
+      test('unknown courseId', () => {
+        expect(courseEnrol(newMember.academicId, course.courseId + 1, false)).toStrictEqual(ERROR);
+      });
+
+      test('already a member', () => {
+        expect(courseEnrol(academic.academicId, course.courseId + 1, false)).toStrictEqual(ERROR);
+      });
+
+      test('already a staff', () => {
+        expect(courseEnrol(academic.academicId, course.courseId + 1, true)).toStrictEqual(ERROR);
+      });
+    });
+
+    test('Enrolling as member', () => {
+      expect(courseEnrol(newMember.academicId, course.courseId, false)).toStrictEqual({});
+      const details = courseDetails(academic.academicId, course.courseId);
+      expect(details.course).not.toBe(undefined);
+      expect(new Set(details.course.allMembers)).toStrictEqual(new Set([academic, newMember]));
+      expect(new Set(details.course.staffMembers)).toStrictEqual(new Set([academic]));
+    });
+
+    test('Enrolling as staff', () => {
+      expect(courseEnrol(newMember.academicId, course.courseId, true)).toStrictEqual({});
+      const details = courseDetails(academic.academicId, course.courseId);
+      expect(details.course).not.toBe(undefined);
+      expect(new Set(details.course.allMembers)).toStrictEqual(new Set([academic, newMember]));
+      expect(new Set(details.course.staffMembers)).toStrictEqual(new Set([academic, newMember]));
     });
   });
 });
