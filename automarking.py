@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 
 '''
+Version: 1.0.5
+
 NOTE:
 1. If labs do not provide an AUTOMARKING_CONFIG_FILE, the DEFAULT_CONFIG
 (all False) will be used:
@@ -17,6 +19,7 @@ NOTE:
 
 # pylint: disable=missing-function-docstring,line-too-long,too-few-public-methods
 
+import signal
 import sys
 import subprocess
 import os
@@ -42,17 +45,23 @@ DEFAULT_CONFIG = {
 JEST_JSON = "__automarking_test__.json"
 ESLINT_JSON = "__eslint_result___.json"
 COVERAGE_JSON = "coverage/coverage-summary.json"
-ARTEFACT_FILE = "mark.txt"
+ARTIFACT_FILE = "mark.txt"
 
 # Config files
 AUTOMARKING_CONFIG_FILE = "automarking-config.json"
 
 # Miscellaneous
-JEST_TIMEOUT = 60
-NUM_COMMITS = 5
+MAX_SERVER_BOOT_TIME = 5
+JEST_TIMEOUT = 120
+NUM_COMMITS = 10
 SCORE_DECIMAL_PLACES = 2
 STUDENT_SERVER = "src/server"
 LINT_DIR = "src"
+
+
+#=============================================================================#
+# ANSI Colours
+#=============================================================================#
 
 class Colour:
     '''
@@ -76,6 +85,7 @@ class Colour:
     # End colored text
     END = '\033[0m'
     NC ='\x1b[0m'
+
 
 #=============================================================================#
 # Marks Calculation (out of 1)
@@ -108,7 +118,7 @@ def calculate_final_score(config, test_score, coverage_score, lint_score):
     if test_factor < 0:
         raise SystemExit("ERROR: Test factor should not be negative!")
     if sum([test_factor, coverage_factor, lint_factor]) > 1:
-        print([test_factor, coverage_factor, lint_factor])
+        flush_print([test_factor, coverage_factor, lint_factor])
         raise SystemExit("ERROR: Sum of scale factors cannot be greater than 1!")
 
     final_score = round(
@@ -130,7 +140,7 @@ def calculate_final_score(config, test_score, coverage_score, lint_score):
 
 def calculate_grade(percentage):
     # https://www.student.unsw.edu.au/grade
-    if percentage > 100:
+    if percentage < 0 or percentage > 100:
         return 'Error: Please notify a staff!'
     if percentage >= 85:
         return 'High Distinction (HD, 85-100)'
@@ -144,7 +154,7 @@ def calculate_grade(percentage):
 
 
 #=============================================================================#
-# Setup
+# Setup and Utilities
 #=============================================================================#
 
 def get_jest_config():
@@ -176,13 +186,49 @@ def load_config():
         return {**DEFAULT_CONFIG, **json.load(file)}
 
 
+def flush_print(*args, **kwargs):
+    print(*args, **kwargs)
+    sys.stdout.flush()
+
+
+def make_artifact(project_name, final_score):
+    with open(ARTIFACT_FILE, 'w', encoding='utf-8') as file:
+        file.write(f"{project_name}|{final_score}|")
+
+
+def get_automarking_file():
+    automarking_files = glob.glob('automarking.test.[jt]s')
+    if len(automarking_files) != 1:
+        raise SystemExit("Did not find exactly 1 test file:", automarking_files)
+    return automarking_files[0]
+
+
+def remove_if_exist(path):
+    try:
+        os.remove(path)
+        flush_print(f"- Removed '{path}'.")
+    except OSError:
+        flush_print(f"- Failed to remove '{path}'.")
+
+
+def cleanup():
+    flush_print(Colour.BOLD + Colour.F_Red + "CLEANUP: Cleaning generated files", Colour.NC)
+    remove_if_exist("jest.config.cjs")
+    remove_if_exist(ESLINT_JSON)
+    remove_if_exist(ARTIFACT_FILE)
+    remove_if_exist(JEST_JSON)
+
+
 #=============================================================================#
-# Subprocesses NPX
+# Subprocesses
 #=============================================================================#
 
+def kill_sync_workers():
+    subprocess.run(['pkill', '-f', 'node_modules/sync-rpc/lib/worker.js'], check=False)
+
+
 def git_log(num_logs):
-    print(Colour.F_Red, Colour.BOLD, f" \n=== Git Log (last {num_logs} commits) ===\n ")
-    sys.stdout.flush()
+    flush_print(Colour.F_Red, Colour.BOLD, f" \n=== Git Log (last {num_logs} commits) ===\n ")
     subprocess.run([
         'git', 'log', f'-{num_logs}', '--color', '--graph', '--abbrev-commit',
         '--pretty=tformat:%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cD) %C(bold blue)%an%Creset',
@@ -196,11 +242,7 @@ def start_server(coverage):
 
     args += [ "ts-node", STUDENT_SERVER ]
 
-    return subprocess.Popen(
-        args,
-        # stdout=subprocess.PIPE,
-        # stderr=subprocess.DEVNULL,
-    )
+    return subprocess.Popen(args, preexec_fn=os.setsid)
 
 
 def npx_jest(coverage, is_automarking):
@@ -231,8 +273,7 @@ def npx_jest(coverage, is_automarking):
     try:
         subprocess.run(args, check=False, timeout=JEST_TIMEOUT)
     except subprocess.TimeoutExpired:
-        print(f" \n> WARNING: Jest timed out after {JEST_TIMEOUT} seconds\n ")
-        sys.stdout.flush()
+        flush_print(f" \n> WARNING: Jest timed out after {JEST_TIMEOUT} seconds\n ")
 
 
 def npx_eslint():
@@ -254,7 +295,7 @@ def npx_eslint():
 
 
 #=============================================================================#
-# Utilities
+# Jest Wrappers
 #=============================================================================#
 
 def jest_regular(coverage, is_automarking):
@@ -263,10 +304,12 @@ def jest_regular(coverage, is_automarking):
 
 def jest_server(coverage, is_automarking):
     server = start_server(coverage)
-    time.sleep(2)
+    time.sleep(MAX_SERVER_BOOT_TIME)
     # Coverage is measured on the server itself, not from jest
     npx_jest(False, is_automarking)
-    server.terminate()
+    kill_sync_workers()
+    os.killpg(os.getpgid(server.pid), signal.SIGINT)
+    time.sleep(2)
 
 
 def jest_execute(is_server, coverage, is_automarking):
@@ -274,34 +317,6 @@ def jest_execute(is_server, coverage, is_automarking):
         jest_server(coverage, is_automarking)
     else:
         jest_regular(coverage, is_automarking)
-
-
-def make_artefact(project_name, final_score):
-    with open(ARTEFACT_FILE, 'w', encoding='utf-8') as file:
-        file.write(f"{project_name}|{final_score}|")
-
-
-def get_automarking_file():
-    automarking_files = glob.glob('automarking.test.[jt]s')
-    if len(automarking_files) != 1:
-        raise SystemExit("Did not find exactly 1 test file:", automarking_files)
-    return automarking_files[0]
-
-
-def remove_if_exist(path):
-    try:
-        os.remove(path)
-        print(f"- Removed '{path}'.")
-    except OSError:
-        print(f"- Failed to remove '{path}'.")
-
-
-def cleanup():
-    print(Colour.BOLD + Colour.F_Red + "CLEANUP: Cleaning generated files", Colour.NC)
-    remove_if_exist("jest.config.cjs")
-    remove_if_exist(ESLINT_JSON)
-    remove_if_exist(ARTEFACT_FILE)
-    remove_if_exist(JEST_JSON)
 
 
 #=============================================================================#
@@ -318,8 +333,7 @@ def get_jest_score_from_json():
             score = calculate_test_score(passed, total)
             return { 'passed': passed, 'failed': failed, 'total': total, 'score': score }
     except FileNotFoundError:
-        print(" \n> WARNING: Failed to read jest results\n ")
-        sys.stdout.flush()
+        flush_print(" \n> WARNING: Failed to read jest results\n ")
         return { 'passed': 0, 'failed': 0, 'total': 0, 'score': 0 }
 
 
@@ -339,8 +353,7 @@ def get_coverage_score_from_json():
                 'statement': statement, 'function': function
             }
     except FileNotFoundError:
-        print(" \n> WARNING: Failed to read coverage results\n ")
-        sys.stdout.flush()
+        flush_print(" \n> WARNING: Failed to read coverage results\n ")
         return { 'line': 0, 'statement': 0, 'function': 0, 'branch': 0, 'score': 0 }
 
 
@@ -358,8 +371,7 @@ def get_lint_score_from_json():
             return { 'errors': errors, 'warnings': warnings, 'score': score }
 
     except FileNotFoundError:
-        print(" \n> WARNING: Failed to read eslint results\n ")
-        sys.stdout.flush()
+        flush_print(" \n> WARNING: Failed to read eslint results\n ")
         return { 'errors': 0, 'warnings': 0, 'score': 0 }
 
 
@@ -379,23 +391,23 @@ def output_results(config, project_name):
         lint.get('score', 0),
     )
 
-    print(' \n ')
+    flush_print(' \n ')
     if jest:
-        print(Colour.F_LightGreen + "===============================================")
-        print(Colour.BOLD + Colour.F_Green + f"JEST (weighting: {result['test_factor']})", Colour.NC)
-        print("- Staff automarking on student code")
-        print(Colour.F_LightGreen + "===============================================", Colour.NC)
-        print(f"Tests Passed   : {jest['passed']}")
-        print(f"Tests Failed   : {jest['failed']}")
-        print(f"Tests Total    : {jest['total']} ")
-        print(Colour.F_LightGreen + f"Test Score     : {jest['score']:.2f}/1", Colour.NC)
-        print(' \n ')
+        flush_print(Colour.F_LightGreen + "===============================================")
+        flush_print(Colour.BOLD + Colour.F_Green + f"JEST (weighting: {result['test_factor']})", Colour.NC)
+        flush_print("- Staff automarking on student code")
+        flush_print(Colour.F_LightGreen + "===============================================", Colour.NC)
+        flush_print(f"Tests Passed   : {jest['passed']}")
+        flush_print(f"Tests Failed   : {jest['failed']}")
+        flush_print(f"Tests Total    : {jest['total']} ")
+        flush_print(Colour.F_LightGreen + f"Test Score     : {jest['score']:.2f}/1", Colour.NC)
+        flush_print(' \n ')
 
     if coverage:
-        print(Colour.F_LightYellow + "===============================================")
-        print(Colour.BOLD + Colour.F_Yellow + f"COVERAGE (weighting: {result['coverage_factor']})", Colour.NC)
-        print("- Student or given tests on student code")
-        print(("""\
+        flush_print(Colour.F_LightYellow + "===============================================")
+        flush_print(Colour.BOLD + Colour.F_Yellow + f"COVERAGE (weighting: {result['coverage_factor']})", Colour.NC)
+        flush_print("- Student or given tests on student code")
+        flush_print(("""\
   Note:
   - This is one way we have chosen to
   quantify your test quality.
@@ -405,35 +417,35 @@ def output_results(config, project_name):
   so interpret the result however you like
   or conduct YOUR OWN further research.\
         """))
-        print(Colour.F_LightYellow + "===============================================", Colour.NC)
-        print(f"Line           : {coverage['line']}%")
-        print(f"Statement      : {coverage['statement']}%")
-        print(f"Function       : {coverage['function']}%")
-        print(f"Branch         : {coverage['branch']}%")
-        print(Colour.F_LightYellow + f"Coverage Score : {coverage['score']:.2f}/1", Colour.NC)
-        print(' \n ')
+        flush_print(Colour.F_LightYellow + "===============================================", Colour.NC)
+        flush_print(f"Line           : {coverage['line']}%")
+        flush_print(f"Statement      : {coverage['statement']}%")
+        flush_print(f"Function       : {coverage['function']}%")
+        flush_print(f"Branch         : {coverage['branch']}%")
+        flush_print(Colour.F_LightYellow + f"Coverage Score : {coverage['score']:.2f}/1", Colour.NC)
+        flush_print(' \n ')
 
     if lint:
-        print(Colour.F_LightMagenta + "===============================================")
-        print(Colour.BOLD + Colour.F_Magenta + f"ESLINT (weighting: {result['lint_factor']})", Colour.NC)
-        print("- Staff lint on student code")
-        print(Colour.F_LightMagenta + "===============================================", Colour.NC)
-        print(f"Errors         : {lint['errors']}")
-        print(f"Warnings       : {lint['warnings']}")
-        print(Colour.F_LightMagenta + f"Lint Score     : {lint['score']:.2f}/1", Colour.NC)
-        print(' \n ')
+        flush_print(Colour.F_LightMagenta + "===============================================")
+        flush_print(Colour.BOLD + Colour.F_Magenta + f"ESLINT (weighting: {result['lint_factor']})", Colour.NC)
+        flush_print("- Staff lint on student code")
+        flush_print(Colour.F_LightMagenta + "===============================================", Colour.NC)
+        flush_print(f"Errors         : {lint['errors']}")
+        flush_print(f"Warnings       : {lint['warnings']}")
+        flush_print(Colour.F_LightMagenta + f"Lint Score     : {lint['score']:.2f}/1", Colour.NC)
+        flush_print(' \n ')
 
     percentage = round(result['final_score'] * 100)
-    print(Colour.F_LightBlue + "===============================================", Colour.NC)
-    print(Colour.BOLD + Colour.F_Blue + "AUTOMARKING RESULT", Colour.NC)
-    print("- Combined score of all components")
-    print(Colour.F_LightBlue + "===============================================", Colour.NC)
-    print(f"Percentage     : {percentage}%")
-    print(f"Final Grade    : {calculate_grade(percentage)}")
-    print(Colour.F_LightBlue + f"Final Score    : {result['final_score']:.2f}/1", Colour.NC)
-    print(' \n ')
+    flush_print(Colour.F_LightBlue + "===============================================", Colour.NC)
+    flush_print(Colour.BOLD + Colour.F_Blue + "AUTOMARKING RESULT", Colour.NC)
+    flush_print("- Combined score of all components")
+    flush_print(Colour.F_LightBlue + "===============================================", Colour.NC)
+    flush_print(f"Percentage     : {percentage}%")
+    flush_print(f"Final Grade    : {calculate_grade(percentage)}")
+    flush_print(Colour.F_LightBlue + f"Final Score    : {result['final_score']:.2f}/1", Colour.NC)
+    flush_print(' \n ')
 
-    make_artefact(project_name, result['final_score'])
+    make_artifact(project_name, result['final_score'])
 
 
 #=============================================================================#
@@ -443,20 +455,17 @@ def output_results(config, project_name):
 def automarker(project_name):
     config = load_config()
 
-    print(Colour.F_LightYellow, Colour.BOLD, " \n=== Staff Tests ===\n ", Colour.NC)
-    sys.stdout.flush()
+    flush_print(Colour.F_LightYellow, Colour.BOLD, " \n=== Staff Tests ===\n ", Colour.NC)
     jest_execute(config['server'], False, True)
 
     if config['coverage']:
-        print(Colour.F_Green, Colour.BOLD, " \n=== Student Tests ===\n ", Colour.NC)
-        sys.stdout.flush()
+        flush_print(Colour.F_Green, Colour.BOLD, " \n=== Student Tests ===\n ", Colour.NC)
         jest_execute(config['server'], True, False)
 
     if config['lint']:
-        print(Colour.BOLD + Colour.F_Magenta + " \n=== Running Lint ===\n ", Colour.NC, end='')
-        sys.stdout.flush()
+        flush_print(Colour.BOLD + Colour.F_Magenta + " \n=== Running Lint ===\n ", Colour.NC, end='')
         if npx_eslint().returncode == 0:
-            print("\nNo linting warnings or errors, well done!")
+            flush_print("\nNo linting warnings or errors, well done!")
 
     output_results(config, project_name)
 
@@ -468,7 +477,7 @@ if __name__ == '__main__':
     DEBUG = False
     if len(sys.argv) == 3:
         dir_path = sys.argv[2]
-        print(f"cd {dir_path}")
+        flush_print(f"cd {dir_path}")
         os.chdir(dir_path)
         DEBUG = True
 
@@ -476,8 +485,7 @@ if __name__ == '__main__':
     AUTOMARKING_TEST_FILE = get_automarking_file()
     JEST_CONFIG_FILE = get_jest_config()
 
-    print(Colour.BOLD + f" \nAutomarking {CI_PROJECT_NAME}" + Colour.NC)
-    sys.stdout.flush()
+    flush_print(Colour.BOLD + f" \nAutomarking {CI_PROJECT_NAME}" + Colour.NC)
 
     git_log(NUM_COMMITS)
     automarker(CI_PROJECT_NAME)
