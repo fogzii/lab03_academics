@@ -7,7 +7,7 @@ before_script:
   - git config user.email "comp1531-marker@cse.unsw.edu.au"
   - git config user.name "comp1531-marker"
   - git merge remotes/origin/submission --allow-unrelated-histories -X ours -m "Automarking"
-  - mv -nv automarking-lock package-lock.json
+  - mv -nv automarking-lock.json package-lock.json
   - npm ci
 
 automarking:
@@ -22,3 +22,4 @@ automarking:
   artifacts:
     paths:
       - mark.txt
+
