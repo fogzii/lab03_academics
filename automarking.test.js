@@ -9,7 +9,6 @@ import {
   clear,
 } from './academics';
 
-// Extra leniency - should be { error: 'error' } from specs.
 const ERROR = { error: expect.any(String) };
 
 beforeEach(() => clear());
