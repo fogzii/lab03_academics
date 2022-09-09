@@ -2,8 +2,6 @@
  * @module academics
  */
   
-const ERROR = { error: 'error' };
-
 const database = {
   academics: [],
   courses: [],
@@ -25,7 +23,7 @@ export function getCourse(courseId) {
 
 export function academicCreate(name, hobby) {
   if (!name || !hobby) {
-    return ERROR;
+    return { error: 'Name or hobby cannot be an empty string' };
   }
 
   // Arbitrary way to generate ids since 0,1,2,3 is boring
@@ -43,10 +41,10 @@ export function academicCreate(name, hobby) {
 
 export function courseCreate(academicId, name, description) {
   if (!getAcademic(academicId)) {
-    return ERROR;
+    return { error: `academicId '${academicId}' is invalid` };
   }
   if (!/^[A-Z]{4}[0-9]{4}$/.test(name)) {
-    return ERROR;
+    return { error: `course name '${name}' does not satisfy the criteria` };
   }
 
   // Arbitrary way to generate ids since 0,1,2,3 is boring
@@ -66,25 +64,25 @@ export function courseCreate(academicId, name, description) {
 
 export function academicDetails(academicId, academicToViewId) {
   if (!getAcademic(academicId)) {
-    return ERROR;
+    return { error: `academicId '${academicId}' is invalid` };
   }
   const academic = getAcademic(academicToViewId);
   if (!academic) {
-    return ERROR;
+    return { error: `academicToViewId '${academicToViewId}' is invalid` };
   }
   return { academic };
 }
 
 export function courseDetails(academicId, courseId) {
   if (!getAcademic(academicId)) {
-    return ERROR;
+    return { error: `academicId '${academicId}' is invalid` };
   }
   const course = getCourse(courseId);
   if (!course) {
-    return ERROR;
+    return { error: `courseId '${courseId}' is invalid` };
   }
   if (!course.allMemberIds.includes(academicId)) {
-    return ERROR;
+    return { error: `academic is not a member of the course` };
   }
 
   const { staffMemberIds, allMemberIds, ...details } = course;
@@ -99,7 +97,7 @@ export function courseDetails(academicId, courseId) {
 
 export function academicsList(academicId) {
   if (!getAcademic(academicId)) {
-    return ERROR;
+    return { error: `academicId '${academicId}' is invalid` };
   }
   return {
     academics: database.academics.map(a => ({
@@ -111,7 +109,7 @@ export function academicsList(academicId) {
 
 export function coursesList(academicId) {
   if (!getAcademic(academicId)) {
-    return ERROR;
+    return { error: `academicId '${academicId}' is invalid` };
   }
   return {
     courses: database.courses.map(c => ({
@@ -123,20 +121,20 @@ export function coursesList(academicId) {
 
 export function courseEnrol(academicId, courseId, isStaff) {
   if (!getAcademic(academicId)) {
-    return ERROR;
+    return { error: `academicId '${academicId}' is invalid` };
   }
   const course = getCourse(courseId);
   if (!course) {
-    return ERROR;
+    return { error: `courseId '${courseId}' is invalid` };
   }
   if (course.allMemberIds.includes(academicId)) {
-    return ERROR;
+    return { error: 'academic is already a member of the course' };
   }
   course.allMemberIds.push(academicId);
 
   if (isStaff) {
     if (course.staffMemberIds.includes(academicId)) {
-      return ERROR;
+      return { error: 'academic is already a staff of the course' };
     }
     course.staffMemberIds.push(academicId);
   }
