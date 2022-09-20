@@ -127,17 +127,17 @@ export function courseEnrol(academicId, courseId, isStaff) {
   if (!course) {
     return { error: `courseId '${courseId}' is invalid` };
   }
-  if (course.allMemberIds.includes(academicId)) {
-    return { error: 'academic is already a member of the course' };
-  }
-  course.allMemberIds.push(academicId);
-
   if (isStaff) {
     if (course.staffMemberIds.includes(academicId)) {
       return { error: 'academic is already a staff of the course' };
     }
     course.staffMemberIds.push(academicId);
   }
+  if (course.allMemberIds.includes(academicId)) {
+    return { error: 'academic is already a member of the course' };
+  }
+  course.allMemberIds.push(academicId);
+
   return {};
 }
 
