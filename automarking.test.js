@@ -188,6 +188,10 @@ describe('Protected functions', () => {
       expect(courseDetails(academic.academicId + 1, course.courseId)).toStrictEqual(ERROR);
     });
 
+    test('unknown course', () => {
+      expect(courseDetails(academic.academicId, course.courseId + 1)).toStrictEqual(ERROR);
+    });
+
     test('not member academicId', () => {
       const a2 = academicCreate('a2', 'hobby');
       expect(courseDetails(a2.academicId, course.courseId)).toStrictEqual(ERROR);
@@ -309,11 +313,11 @@ describe('Protected functions', () => {
       });
 
       test('already a member', () => {
-        expect(courseEnrol(academic.academicId, course.courseId + 1, false)).toStrictEqual(ERROR);
+        expect(courseEnrol(academic.academicId, course.courseId, false)).toStrictEqual(ERROR);
       });
 
       test('already a staff', () => {
-        expect(courseEnrol(academic.academicId, course.courseId + 1, true)).toStrictEqual(ERROR);
+        expect(courseEnrol(academic.academicId, course.courseId, true)).toStrictEqual(ERROR);
       });
     });
 
@@ -334,3 +338,4 @@ describe('Protected functions', () => {
     });
   });
 });
+
