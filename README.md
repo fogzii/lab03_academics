@@ -202,8 +202,8 @@ Please also see the [Function Note](#functions-note) section (particularly regar
         <ul>
             <li><code>academicId</code> does not refer to a valid academic</li>
             <li><code>courseId</code> does not refer to a valid course</li>
-            <li><code>academicId</code> refers to an existing member in the course</li>
             <li><code>academicId</code> refers to an existing staff in the course and <code>isStaff</code> is true</li>
+            <li><code>academicId</code> refers to an existing member in the course</li>
         </ul>
     </td>
   </tr>
