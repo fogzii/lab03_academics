@@ -12,7 +12,7 @@
  * }
  *
  * and adding to the dataStore the necessary information when the
- * "register" functions are used.
+ * "create" functions are used.
  *
  * You will also need to modify the clear function accordingly
  * - we recommend you complete clear() at the bottom first!
