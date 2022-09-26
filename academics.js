@@ -68,13 +68,13 @@ export function courseCreate(academicId, name, description) {
  */
 export function academicDetails(academicId, academicToViewId) {
   // TODO
-return {
-  academic: {
-    academicId: -999,
-    name: 'Aya',
-    hobby: 'music',
-  }
-};
+  return {
+    academic: {
+      academicId: -999,
+      name: 'Aya',
+      hobby: 'music',
+    }
+  };
 }
 
 export function courseDetails(academicId, courseId) {
