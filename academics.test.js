@@ -29,7 +29,7 @@ test('Remove this test and uncomment the sample tests further below', () => {
 // You may want to break this up into multiple tests.
 describe('Sample test', () => {
   test('error creating academics', () => {
-    // Every test should be indendent of other tests. This can be achieve by
+    // Each test should be independent of other tests. This can be achieve by
     // clearing and reinitialising the database.
     // You may want to look at Jest's beforeEach and afterEach.
     clear();
