@@ -4,13 +4,15 @@
 
 ## Due Date
 
-Week 4 Monday 5:00 pm AEST
+~~Week 4 Monday 5:00 pm AEST~~ (extended by 17 hours due to the public holiday on Monday 03.10.2022, for 22T3)
+
+Week 4 Tuesday 10:00 am AEST
 
 ## Background
 
 ### Rationale
 
-As a software engineer, it is important to quickly adapt to changing requirements. Seeing your success from lab01, the university has reached out again for help with redesigning their entire academic-course system. 
+As a software engineer, it is important to quickly adapt to changing requirements. Seeing your success from lab01, the university has reached out again for help with redesigning its entire academic-course system.
 
 You were presented with a new set of requirements, including the admission of new academics and courses to the system. Any design decisions and inner workings of your software are left to your professional judgement - the university is only interested in the input/output from the interface.
 
@@ -211,7 +213,7 @@ Please also see the [Function Note](#functions-note) section (particularly regar
   <tr>
     <td>
         <code>clear</code><br /><br />
-        Reset the database to the initial state and returns an empty object.
+        Reset the database to the initial (empty) state and returns an empty object.
         <br/><br/><b>Difficulty</b>: ⭐
     </td>
     <td>
