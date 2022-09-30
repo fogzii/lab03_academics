@@ -326,7 +326,9 @@ describe('Protected functions', () => {
       const details = courseDetails(academic.academicId, course.courseId);
       expect(details.course).not.toBe(undefined);
       expect(new Set(details.course.allMembers)).toStrictEqual(new Set([academic, newMember]));
+      expect(details.course.allMembers.length).toStrictEqual(2);
       expect(new Set(details.course.staffMembers)).toStrictEqual(new Set([academic]));
+      expect(details.course.staffMembers.length).toStrictEqual(1);
     });
 
     test('Enrolling as staff', () => {
@@ -334,7 +336,9 @@ describe('Protected functions', () => {
       const details = courseDetails(academic.academicId, course.courseId);
       expect(details.course).not.toBe(undefined);
       expect(new Set(details.course.allMembers)).toStrictEqual(new Set([academic, newMember]));
+      expect(details.course.allMembers.length).toStrictEqual(2);
       expect(new Set(details.course.staffMembers)).toStrictEqual(new Set([academic, newMember]));
+      expect(details.course.staffMembers.length).toStrictEqual(2);
     });
   });
 });
