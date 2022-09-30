@@ -11,8 +11,8 @@ import {
 
 const ERROR = { error: expect.any(String) };
 
-beforeEach(() => clear());
-afterAll(() => clear());
+beforeEach(clear);
+afterAll(clear);
 
 describe('clear', () => {
   let academic;
