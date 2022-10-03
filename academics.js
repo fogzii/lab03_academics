@@ -2,36 +2,13 @@
  * @module academics
  */
 
-/**
- * Create your dataStore here. The design is entirely up to you!
- * One possible starting point is
- *
- * let/const dataStore = {
- *   academics: [],
- *   courses: []
- * }
- *
- * and adding to the dataStore the necessary information when the
- * "create" functions are used.
- *
- * You will also need to modify the clear function accordingly
- * - we recommend you complete clear() at the bottom first!
- * 
- * Do not export the dataStore. Your tests should not use/rely on
- * how dataStore is structured - only what goes in and out of the
- * defined functions from the interface.
- */
+ const dataStore = {
+  academics: [],
+  courses: []
+}
 
-// TODO
-
-/**
- * Complete the functions from the interface table.
- * As an optional activity, you can document your functions
- * similar to how academicCreate has been done.
- *
- * A reminder to return { error: 'any relevant error message of your choice' }
- * for error cases.
- */
+let currAcademicId = -1;
+let currCourseId = -1;
 
 /**
  * Creates a new academic, returning an object containing
@@ -42,14 +19,31 @@
  * @returns {{academicId: number}}
  */
 export function academicCreate(name, hobby) {
-  // TODO:
+  if (name === '' || hobby === '') {
+    return {
+      error: 'Name or hobby is empty',
+    };
+  }
+
+  currAcademicId++;
+
+  dataStore.academics.push(
+    {
+      academicId: currAcademicId,
+      name: name,
+      hobby: hobby,
+    }
+  );
+
   return {
-    academicId: 111,
+    academicId: currAcademicId,
   };
+
 }
 
 /**
- * Some description
+ * Creates a new course, returning an object containing a unique course id. 
+ * The academic who created the course is both a staff and a member.
  *
  * @param {number} academicId
  * @param {string} name
@@ -57,94 +51,227 @@ export function academicCreate(name, hobby) {
  * @returns {{courseId: number}}
  */
 export function courseCreate(academicId, name, description) {
-  // TODO
+  const id = academicId;
+  const academic = dataStore.academics.find(({ academicId }) => academicId === id);
+  if (academic === undefined) {
+    return {
+      error: 'AcademicId is invalid',
+    };
+  }
+
+  let letters = name.slice(4);
+  let numbers = name.slice(4,8);
+  let invalidName = false;
+
+  if (name.length != 8) {
+    invalidName = true;
+  }
+
+  if (isNaN(numbers)) {
+    invalidName = true;
+  }
+
+  for (let i = 0; i < 4; i++) {
+    if (letters[i] === undefined || letters[i].toLowerCase === letters[i]) {
+      invalidName = true;
+      break;
+    }
+  }
+
+  if (invalidName) {
+    return {
+      error: 'Course name is invalid',
+    };
+  }
+
+  currCourseId++;
+
+  dataStore.courses.push( 
+    {
+      courseId: currCourseId,
+      name: name,
+      description: description,
+      allMembers: [academicId],
+      staffMembers: [academicId],
+    }
+  );
+
   return {
-    courseId: 123,
+    courseId: currCourseId,
   };
 }
 
 /**
- * Some documentation
+ * Return an object containing details about the academicToView.
  */
 export function academicDetails(academicId, academicToViewId) {
-  // TODO
+  const id = academicId;
+  let academic = dataStore.academics.find(({ academicId }) => academicId === id);
+  if (academic === undefined) {
+    return {
+      error: 'academicId is invalid',
+    };
+  }
+  
+  const idView = academicToViewId;
+  let academicView = dataStore.academics.find(({ academicId }) => academicId === idView);
+  if (academicView === undefined) {
+    return {
+      error: 'academicToViewId is invalid',
+    };
+  }
+
+  academic = academicView;
+
   return {
-    academic: {
-      academicId: -999,
-      name: 'Aya',
-      hobby: 'music',
-    }
+    academic,
   };
 }
 
 export function courseDetails(academicId, courseId) {
-  // TODO
+  let id = academicId;
+  const academic = dataStore.academics.find(({ academicId }) => academicId === id);
+  if (academic === undefined) {
+    return {
+      error: 'academicId is invalid',
+    };
+  }
+
+  id = courseId;
+  let courseRef = dataStore.courses.find(({ courseId }) => courseId === id);
+  if (courseRef === undefined) {
+    return {
+      error: 'courseId is invalid',
+    };
+  }
+
+  const isMember = courseRef.allMembers.find(element => element === academicId);
+  if (isMember === undefined) {
+     return {
+      error: 'Not a member of the course',
+     };
+  }
+
+  let course = courseRef;
+  course.allMembers = [];
+  for (const id of courseRef.allMembers) {
+    let academic = academicDetails(id, id);
+    course.allMembers.push(
+      {
+        academic,
+      }
+    );
+  }
+
+  course = courseRef;
+  course.staffMembers = [];
+  for (const id of courseRef.staffMembers) {
+    let academic = academicDetails(id, id);
+    course.staffMembers.push(
+      {
+        academic,
+      }
+    );
+  }
+
   return {
-    course: {
-      courseId: -1531,
-      name: 'COMP1531',
-      description: 'Software Engineering Fundamentals',
-      staffMembers: [
-        {
-          academicId: -999,
-          name: 'Ben',
-          hobby: 'boxing',
-        },
-      ],
-      allMembers: [
-        {
-          academicId: -999,
-          name: 'Ben',
-          hobby: 'boxing',
-        },
-        {
-          academicId: -888,
-          name: 'Cid',
-          hobby: 'novel',
-        },
-      ],
-    }
+    course,
   };
 }
 
 export function academicsList(academicId) {
-  // TODO
+  const id = academicId;
+  const academic = dataStore.academics.find(({ academicId }) => academicId === id);
+  if (academic === undefined) {
+    return {
+      error: 'academicId is invalid',
+    };
+  }
+
+  const academics = [];
+
+  for (const academic of dataStore.academics) {
+    academics.push(
+      {
+        academicId: academic.academicId,
+        academicName: academic.name,
+      }
+    );
+  }
+
   return {
-    academics: [
-      {
-        academicId: 111,
-        academicName: 'Dan',
-      },
-      {
-        academicId: 222,
-        academicName: 'Eve',
-      },
-    ]
+    academics,
   };
 }
 
 export function coursesList(academicId) {
-  // TODO
+  const id = academicId;
+  const academic = dataStore.academics.find(({ academicId }) => academicId === id);
+  if (academic === undefined) {
+    return {
+      error: 'academicId is invalid',
+    };
+  }
+
+  const courses = [];
+
+  for (const course of dataStore.courses) {
+    courses.push(
+      {
+        courseId: course.courseId,
+        courseName: course.name,
+      }
+    )
+  }
+
   return {
-    courses: [
-      {
-        courseId: 123,
-        courseName: 'Course 1',
-      },
-      {
-        courseId: 234,
-        courseName: 'Course 2',
-      },
-    ]
+    courses,
   };
 }
 
 export function courseEnrol(academicId, courseId, isStaff) {
-  // TODO
+  let id = academicId;
+  const academic = dataStore.academics.find(({ academicId }) => academicId === id);
+  if (academic === undefined) {
+    return {
+      error: 'academicId is invalid',
+    };
+  }
+
+  id = courseId;
+  const course = dataStore.courses.find(({ courseId }) => courseId === id);
+  if (course === undefined) {
+    return {
+      error: 'courseId is invalid',
+    };
+  }
+  
+  const isStaffMember = course.staffMembers.find(element => element === academicId);
+  if ((isStaffMember != undefined) && (isStaff === true)) {
+     return {
+      error: 'already an existing staff of the course',
+     };
+  }
+
+  const isMember = course.allMembers.find(element => element === academicId);
+  if (isMember != undefined) {
+     return {
+      error: 'already an existing member of the course',
+     };
+  }
+
+  if (isStaffMember === true) {
+    course.staffMembers.push(academicId);
+  }
+  course.allMembers.push(academicId);
+
   return {};
 }
 
 export function clear() {
-  // TODO
+  dataStore.academics = [];
+  dataStore.courses = [];
+  currAcademicId = -1;
+  currCourseId = -1;
   return {};
 }
