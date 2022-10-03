@@ -69,7 +69,7 @@ describe('Functions that create/add items', () => {
     const course = courseCreate(academic.academicId, 'POLE1101', 'pole dancing fundamentals');
 
     courseEnrol(academic2.academicId, course.courseId, false);
-    expect(courseDetails(academic.academicId, course.courseId).allMembers).toStrictEqual({
+    expect(courseDetails(academic.academicId, course.courseId)).toStrictEqual({
       course: {
         courseId: course.courseId,
         name: 'POLE1101',
@@ -86,7 +86,7 @@ describe('Functions that create/add items', () => {
     const course = courseCreate(academic.academicId, 'POLE1101', 'pole dancing fundamentals');
 
     courseEnrol(academic2.academicId, course.courseId, true);
-    expect(courseDetails(academic.academicId, course.courseId).allMembers).toStrictEqual({
+    expect(courseDetails(academic.academicId, course.courseId)).toStrictEqual({
       course: {
         courseId: course.courseId,
         name: 'POLE1101',
@@ -223,7 +223,7 @@ describe('Functions that request details', () => {
       }
     );
 
-    const list = CoursesList(academic.academicId);
+    const list = coursesList(academic.academicId);
     const listCoursesCompare = new Set(list);
 
     expect(listCourses).toStrictEqual(listCoursesCompare);
@@ -233,34 +233,3 @@ describe('Functions that request details', () => {
     expect(coursesList(777)).toStrictEqual({ error: expect.any(String) });
   });
 });
-
-
-    const academic = academicCreate('Magnus', 'chess');
-
-    // NOTE: We don't actually know what the generated ID should be
-    expect(academic).toStrictEqual(
-      {
-        academicId: expect.any(Number),
-      }
-    );
-
-    // However, we can still use this ID in other functions
-    expect(academicDetails(academic.academicId, academic.academicId)).toStrictEqual({
-      academic: {
-        academicId: academic.academicId,
-        name: 'Magnus',
-        hobby: 'chess',
-      }
-    });
-
-    // Note the different key for "name" in this function - refer to "Data Types"
-    // When comparing arrays with multiple items, you may want to convert each
-    // array into a Set (since we don't know which order the items will be in).
-    expect(academicsList(academic.academicId)).toStrictEqual({
-      academics: [
-        {
-          academicId: academic.academicId,
-          academicName: 'Magnus',
-        }
-      ]
-    });
